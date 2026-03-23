@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # UniSync - Timetable Maker (Java Swing)
 
 UniSync is a simple desktop timetable generator built with Java Swing.
@@ -80,3 +81,6 @@ java Main
 - Export timetable to CSV/PDF.
 - Add conflict warnings and validation summaries.
 - Add unit tests for scheduler rules.
+=======
+# UniSync
+>>>>>>> 0e2ed57ebf76a7b5ce3ee176d90754e829f40e87
