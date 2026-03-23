@@ -33,11 +33,11 @@ Unisync/
 |- model/
 |  |- Subject.java
 |  |- Room.java
-|  `- TimeSlot.java
+|  |- TimeSlot.java
 |- service/
-|  `- Scheduler.java
-`- ui/
-   `- MainFrame.java
+|  |- Scheduler.java
+|- ui/
+   |- MainFrame.java
 ```
 
 ## How to Run
