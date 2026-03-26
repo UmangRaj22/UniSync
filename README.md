@@ -61,7 +61,7 @@ java Main
 2. Click **Add Subject** (repeat for all subjects).
 3. Enter:
    - Days like: `Mon,Tue,Wed`
-   - Time slots like: `9-10,10-11,11-12`
+   - Time slots like: `9:30-10:20,10:20-11:10,11:10-12:00`
 4. Click **Generate Timetable**.
 5. View the generated timetable in the table.
 
@@ -77,9 +77,6 @@ java Main
 
 - Enforce `hoursPerWeek` constraints during scheduling.
 - Allow room management from UI.
-- Export timetable to CSV/PDF.
 - Add conflict warnings and validation summaries.
 - Add unit tests for scheduler rules.
-=======
-# UniSync
->>>>>>> 0e2ed57ebf76a7b5ce3ee176d90754e829f40e87
+
