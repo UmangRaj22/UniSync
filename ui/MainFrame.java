@@ -2,13 +2,16 @@ package ui;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
-import java.awt.*;
+import javax.swing.table.TableCellRenderer;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.awt.Font;
+import java.awt.Color;
 
+import java.util.*;
 import java.io.*;
 
 import model.*;
@@ -16,33 +19,36 @@ import service.Scheduler;
 
 public class MainFrame extends JFrame {
 
-    JTextField subjectField, facultyField, sectionField, hoursField, daysField, slotsField;
-    JComboBox<String> typeBox;
-    JTable table;
-    DefaultTableModel tableModel;
+    JTextField subjectField, facultyField, sectionField, hoursField, daysField, slotsField, roomField;
+    JComboBox<String> typeBox, sectionDropdown;
+
+    JTable table, subjectTable;
+    DefaultTableModel tableModel, subjectTableModel;
 
     List<Subject> subjects = new ArrayList<>();
     boolean isManualEdited = false;
 
     public MainFrame() {
 
-        setTitle("TimeTable Maker");
-        setSize(1000, 600);
+        setTitle("Timetable Management System");
+        setSize(1100, 720);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // 🔹 FORM PANEL
+        // FORM PANEL
         JPanel form = new JPanel(new GridLayout(0, 2, 5, 5));
 
         subjectField = new JTextField();
         facultyField = new JTextField();
         sectionField = new JTextField();
         hoursField = new JTextField();
+        roomField = new JTextField();
 
         typeBox = new JComboBox<>(new String[]{"Theory", "Lab"});
+        sectionDropdown = new JComboBox<>();
 
-        daysField = new JTextField("Mon,Tue,Wed");
-        slotsField = new JTextField("9:30-10:20,10:20-11:10,11:10-12:00");
+        daysField = new JTextField("Mon,Tue,Wed,Thu,Fri");
+        slotsField = new JTextField("9:30-10:20,10:20-11:10,11:10-12:00,12:00-12:50,12:50-1:35,1:35-2:20,2:20-3:05,3:05-3:50,3:50-4:35");
 
         form.add(new JLabel("Subject"));
         form.add(subjectField);
@@ -59,32 +65,51 @@ public class MainFrame extends JFrame {
         form.add(new JLabel("Hours/Week"));
         form.add(hoursField);
 
+        form.add(new JLabel("Rooms (comma separated)"));
+        form.add(roomField);
+
         form.add(new JLabel("Days"));
         form.add(daysField);
 
         form.add(new JLabel("Time Slots"));
         form.add(slotsField);
 
-        // 🔹 TABLE
-        tableModel = new DefaultTableModel();
+        // SUBJECT TABLE
+        subjectTableModel = new DefaultTableModel(
+                new String[]{"Subject", "Faculty", "Section", "Type", "Hours"}, 0);
 
+        subjectTable = new JTable(subjectTableModel);
+        JScrollPane subjectScroll = new JScrollPane(subjectTable);
+        subjectScroll.setPreferredSize(new Dimension(1000, 120));
+
+        // TOP PANEL
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(subjectScroll, BorderLayout.CENTER);
+        topPanel.add(sectionDropdown, BorderLayout.SOUTH);
+
+        add(topPanel, BorderLayout.NORTH);
+
+        // MAIN TABLE
+        tableModel = new DefaultTableModel();
         table = new JTable(tableModel) {
             public boolean isCellEditable(int row, int column) {
                 return column != 0;
             }
         };
 
-        // 🔹 SPLIT PANE
+        table.setRowHeight(60);
+        table.setDefaultRenderer(Object.class, new CenterRenderer());
+
         JSplitPane splitPane = new JSplitPane(
                 JSplitPane.VERTICAL_SPLIT,
                 new JScrollPane(form),
                 new JScrollPane(table)
         );
 
-        splitPane.setDividerLocation(220);
+        splitPane.setDividerLocation(260);
         add(splitPane, BorderLayout.CENTER);
 
-        // 🔹 BUTTON PANEL
+        // BUTTON PANEL
         JPanel buttonPanel = new JPanel();
 
         JButton addBtn = new JButton("Add Subject");
@@ -103,7 +128,7 @@ public class MainFrame extends JFrame {
 
         add(buttonPanel, BorderLayout.SOUTH);
 
-        // 🔹 ACTIONS
+        // ACTIONS
         addBtn.addActionListener(e -> addSubject());
         generateBtn.addActionListener(e -> generateTT());
         importBtn.addActionListener(e -> importCSV());
@@ -112,7 +137,6 @@ public class MainFrame extends JFrame {
         clearBtn.addActionListener(e -> clearSlot());
     }
 
-    // 🔹 ADD SUBJECT
     private void addSubject() {
 
         if (subjectField.getText().isEmpty() ||
@@ -120,7 +144,7 @@ public class MainFrame extends JFrame {
                 sectionField.getText().isEmpty() ||
                 hoursField.getText().isEmpty()) {
 
-            JOptionPane.showMessageDialog(this, "Fill all fields");
+            JOptionPane.showMessageDialog(this, "All fields are required");
             return;
         }
 
@@ -129,47 +153,74 @@ public class MainFrame extends JFrame {
         try {
             hours = Integer.parseInt(hoursField.getText());
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Hours must be number");
+            JOptionPane.showMessageDialog(this, "Hours must be numeric");
             return;
         }
 
-        subjects.add(new Subject(
+        if (typeBox.getSelectedItem().equals("Lab") && hours % 2 != 0) {
+            JOptionPane.showMessageDialog(this, "Lab hours must be multiple of 2");
+            return;
+        }
+
+        Subject s = new Subject(
                 subjectField.getText(),
                 (String) typeBox.getSelectedItem(),
                 facultyField.getText(),
                 sectionField.getText(),
                 hours
-        ));
+        );
 
-        JOptionPane.showMessageDialog(this, "Subject Added");
-    }
+        subjects.add(s);
 
-    // 🔹 GENERATE TIMETABLE
-    private void generateTT() {
+        subjectTableModel.addRow(new Object[]{
+                s.getName(),
+                s.getFaculty(),
+                s.getSection(),
+                s.getType(),
+                s.getHoursPerWeek()
+        });
 
-        // Manual edit check
-        if (isManualEdited) {
-            int confirm = JOptionPane.showConfirmDialog(
-                    this,
-                    "Manual changes will be lost. Continue?",
-                    "Warning",
-                    JOptionPane.YES_NO_OPTION
-            );
-
-            if (confirm != JOptionPane.YES_OPTION) return;
-
-            isManualEdited = false;
+        if (((DefaultComboBoxModel<String>) sectionDropdown.getModel())
+                .getIndexOf(s.getSection()) == -1) {
+            sectionDropdown.addItem(s.getSection());
         }
 
-        if (daysField.getText().isEmpty() || slotsField.getText().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Enter days & slots");
+        JOptionPane.showMessageDialog(this, "Subject added");
+    }
+
+    private void generateTT() {
+
+        if (subjects.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No subjects available");
             return;
         }
 
-        List<Room> rooms = Arrays.asList(
-                new Room("101", "Classroom"),
-                new Room("Lab1", "Lab")
-        );
+        String selectedSection = (String) sectionDropdown.getSelectedItem();
+
+        if (selectedSection == null) {
+            JOptionPane.showMessageDialog(this, "Select a section");
+            return;
+        }
+
+        List<Room> rooms = new ArrayList<>();
+
+        String[] roomInputs = roomField.getText().split(",");
+
+        for (String r : roomInputs) {
+            r = r.trim();
+            if (r.isEmpty()) continue;
+
+            if (r.toLowerCase().contains("lab")) {
+                rooms.add(new Room(r, "Lab"));
+            } else {
+                rooms.add(new Room(r, "Classroom"));
+            }
+        }
+
+        if (rooms.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Enter at least one room");
+            return;
+        }
 
         String[] days = daysField.getText().split(",");
         String[] times = slotsField.getText().split(",");
@@ -182,10 +233,17 @@ public class MainFrame extends JFrame {
             }
         }
 
-        Map<TimeSlot, String> timetable =
-                Scheduler.generate(subjects, rooms, slots);
+        List<Subject> filtered = new ArrayList<>();
 
-        // Columns
+        for (Subject s : subjects) {
+            if (s.getSection().equals(selectedSection)) {
+                filtered.add(s);
+            }
+        }
+
+        Map<TimeSlot, String> timetable =
+                Scheduler.generate(filtered, rooms, slots);
+
         String[] columns = new String[times.length + 1];
         columns[0] = "Day/Time";
 
@@ -196,15 +254,13 @@ public class MainFrame extends JFrame {
         tableModel.setColumnIdentifiers(columns);
         tableModel.setRowCount(0);
 
-        // Fill table
         for (String day : days) {
 
             String[] row = new String[times.length + 1];
             row[0] = day.trim();
 
-            for (int i = 1; i < row.length; i++) {
-                row[i] = "-";
-            }
+            Arrays.fill(row, "-");
+            row[0] = day.trim();
 
             for (TimeSlot slot : timetable.keySet()) {
 
@@ -223,7 +279,6 @@ public class MainFrame extends JFrame {
         }
     }
 
-    // 🔹 IMPORT CSV
     private void importCSV() {
 
         JFileChooser fileChooser = new JFileChooser();
@@ -234,23 +289,46 @@ public class MainFrame extends JFrame {
 
             try (BufferedReader br = new BufferedReader(new FileReader(file))) {
 
-                String line = br.readLine();
-                tableModel.setColumnIdentifiers(line.split(","));
-                tableModel.setRowCount(0);
+                String line;
 
                 while ((line = br.readLine()) != null) {
-                    tableModel.addRow(line.split(","));
+
+                    String[] data = line.split(",");
+
+                    if (data.length < 5) continue;
+
+                    Subject s = new Subject(
+                            data[0].trim(),
+                            data[1].trim(),
+                            data[2].trim(),
+                            data[3].trim(),
+                            Integer.parseInt(data[4].trim())
+                    );
+
+                    subjects.add(s);
+
+                    subjectTableModel.addRow(new Object[]{
+                            s.getName(),
+                            s.getFaculty(),
+                            s.getSection(),
+                            s.getType(),
+                            s.getHoursPerWeek()
+                    });
+
+                    if (((DefaultComboBoxModel<String>) sectionDropdown.getModel())
+                            .getIndexOf(s.getSection()) == -1) {
+                        sectionDropdown.addItem(s.getSection());
+                    }
                 }
 
-                JOptionPane.showMessageDialog(this, "Imported");
+                JOptionPane.showMessageDialog(this, "CSV imported");
 
             } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Error");
+                JOptionPane.showMessageDialog(this, "Error importing CSV");
             }
         }
     }
 
-    // 🔹 EXPORT PDF
     private void exportPDF() {
 
         JFileChooser fileChooser = new JFileChooser();
@@ -266,12 +344,13 @@ public class MainFrame extends JFrame {
 
                 document.open();
 
-                document.add(new com.itextpdf.text.Paragraph("TimeTable\n\n"));
+                document.add(new com.itextpdf.text.Paragraph("Timetable\n\n"));
 
                 int cols = tableModel.getColumnCount();
-
                 com.itextpdf.text.pdf.PdfPTable pdfTable =
                         new com.itextpdf.text.pdf.PdfPTable(cols);
+
+                pdfTable.setWidthPercentage(100);
 
                 for (int i = 0; i < cols; i++) {
                     pdfTable.addCell(tableModel.getColumnName(i));
@@ -287,7 +366,7 @@ public class MainFrame extends JFrame {
                 document.add(pdfTable);
                 document.close();
 
-                JOptionPane.showMessageDialog(this, "PDF Exported");
+                JOptionPane.showMessageDialog(this, "PDF exported");
 
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(this, "Error exporting PDF");
@@ -295,14 +374,13 @@ public class MainFrame extends JFrame {
         }
     }
 
-    // 🔹 EDIT CELL
     private void editCell() {
 
         int row = table.getSelectedRow();
         int col = table.getSelectedColumn();
 
         if (row == -1 || col <= 0) {
-            JOptionPane.showMessageDialog(this, "Select valid cell");
+            JOptionPane.showMessageDialog(this, "Select a valid cell");
             return;
         }
 
@@ -316,18 +394,36 @@ public class MainFrame extends JFrame {
         }
     }
 
-    // 🔹 CLEAR SLOT
     private void clearSlot() {
 
         int row = table.getSelectedRow();
         int col = table.getSelectedColumn();
 
         if (row == -1 || col <= 0) {
-            JOptionPane.showMessageDialog(this, "Select valid cell");
+            JOptionPane.showMessageDialog(this, "Select a valid cell");
             return;
         }
 
         tableModel.setValueAt("-", row, col);
         isManualEdited = true;
+    }
+
+    static class CenterRenderer extends JTextArea implements TableCellRenderer {
+
+        public CenterRenderer() {
+            setLineWrap(true);
+            setWrapStyleWord(true);
+            setOpaque(true);
+            setFont(new Font("Arial", Font.PLAIN, 12));
+        }
+
+        public Component getTableCellRendererComponent(
+                JTable table, Object value, boolean isSelected,
+                boolean hasFocus, int row, int column) {
+
+            setText(value == null ? "" : value.toString());
+            setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
+            return this;
+        }
     }
 }

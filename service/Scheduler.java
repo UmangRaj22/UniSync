@@ -11,97 +11,141 @@ public class Scheduler {
             List<TimeSlot> slots) {
 
         Map<TimeSlot, String> timetable = new LinkedHashMap<>();
+        Map<Subject, Integer> remaining = new HashMap<>();
+        Map<Subject, Integer> subjectCount = new HashMap<>();
 
-        // Track usage
-        Map<String, Set<String>> facultySchedule = new HashMap<>();
-        Map<String, Set<String>> roomSchedule = new HashMap<>();
-
-        // Shuffle for better distribution
-        Collections.shuffle(subjects);
-
-        for (TimeSlot slot : slots) {
-
-            boolean assigned = false;
-
-            for (Subject subject : subjects) {
-
-                for (Room room : rooms) {
-
-                    if (!isValid(subject, room, slot,
-                            facultySchedule, roomSchedule)) {
-                        continue;
-                    }
-
-                    // Assign
-                    timetable.put(slot,
-                            subject.getName() + " [" + subject.getSection() + "] - "
-                                    + subject.getFaculty() + " @ " + room.getRoomNumber());
-
-                    markBusy(subject, room, slot,
-                            facultySchedule, roomSchedule);
-
-                    assigned = true;
-                    break;
-                }
-
-                if (assigned) break;
-            }
-
-            // If no subject fits → mark FREE
-            if (!assigned) {
-                timetable.put(slot, "FREE");
-            }
+        for (Subject s : subjects) {
+            remaining.put(s, s.getHoursPerWeek());
         }
+
+        Collections.shuffle(subjects);
+        Collections.shuffle(slots);
+
+        backtrack(0, slots, subjects, rooms, timetable, remaining, subjectCount);
 
         return timetable;
     }
 
-    // ✅ Check constraints
+    private static boolean backtrack(
+            int index,
+            List<TimeSlot> slots,
+            List<Subject> subjects,
+            List<Room> rooms,
+            Map<TimeSlot, String> timetable,
+            Map<Subject, Integer> remaining,
+            Map<Subject, Integer> subjectCount) {
+
+        if (index >= slots.size()) return true;
+
+        TimeSlot slot = slots.get(index);
+
+        // Lunch slot fixed
+        if (isLunchSlot(slot)) {
+            timetable.put(slot, "LUNCH");
+            return backtrack(index + 1, slots, subjects, rooms, timetable, remaining, subjectCount);
+        }
+
+        // Sort for fairness
+        subjects.sort(Comparator.comparingInt(s -> subjectCount.getOrDefault(s, 0)));
+
+        for (Subject subject : subjects) {
+
+            if (remaining.get(subject) <= 0) continue;
+
+            for (Room room : rooms) {
+
+                if (!isValid(subject, room, slot, timetable)) continue;
+
+                // LAB handling
+                if (subject.getType().equals("Lab")) {
+
+                    TimeSlot next = getNextSlot(slots, slot);
+
+                    if (next == null || isLunchSlot(next)) continue;
+
+                    if (timetable.containsKey(next)) continue;
+
+                    String value = format(subject, room) + " (LAB)";
+
+                    timetable.put(slot, value);
+                    timetable.put(next, value);
+
+                    remaining.put(subject, remaining.get(subject) - 2);
+                    subjectCount.put(subject, subjectCount.getOrDefault(subject, 0) + 2);
+
+                    if (backtrack(index + 2, slots, subjects, rooms, timetable, remaining, subjectCount))
+                        return true;
+
+                    timetable.remove(slot);
+                    timetable.remove(next);
+                    remaining.put(subject, remaining.get(subject) + 2);
+                    subjectCount.put(subject, subjectCount.get(subject) - 2);
+                }
+
+                else {
+                    timetable.put(slot, format(subject, room));
+
+                    remaining.put(subject, remaining.get(subject) - 1);
+                    subjectCount.put(subject, subjectCount.getOrDefault(subject, 0) + 1);
+
+                    if (backtrack(index + 1, slots, subjects, rooms, timetable, remaining, subjectCount))
+                        return true;
+
+                    timetable.remove(slot);
+                    remaining.put(subject, remaining.get(subject) + 1);
+                    subjectCount.put(subject, subjectCount.get(subject) - 1);
+                }
+            }
+        }
+
+        timetable.put(slot, "---");
+
+        if (backtrack(index + 1, slots, subjects, rooms, timetable, remaining, subjectCount))
+            return true;
+
+        timetable.remove(slot);
+        return false;
+    }
+
+    private static boolean isLunchSlot(TimeSlot slot) {
+        return slot.getTime().equals("12:50-1:35");
+    }
+
+    private static TimeSlot getNextSlot(List<TimeSlot> slots, TimeSlot current) {
+
+        for (int i = 0; i < slots.size() - 1; i++) {
+            if (slots.get(i).equals(current)) {
+                return slots.get(i + 1);
+            }
+        }
+        return null;
+    }
+
     private static boolean isValid(
             Subject subject,
             Room room,
             TimeSlot slot,
-            Map<String, Set<String>> facultySchedule,
-            Map<String, Set<String>> roomSchedule) {
+            Map<TimeSlot, String> timetable) {
 
-        // Room type constraint
         if (subject.getType().equals("Lab") && !room.getType().equals("Lab"))
             return false;
 
         if (subject.getType().equals("Theory") && !room.getType().equals("Classroom"))
             return false;
 
-        String slotKey = slot.getDay() + "_" + slot.getTime();
+        if (isLunchSlot(slot)) return false;
 
-        // Faculty clash
-        if (facultySchedule.containsKey(subject.getFaculty()) &&
-                facultySchedule.get(subject.getFaculty()).contains(slotKey))
-            return false;
-
-        // Room clash
-        if (roomSchedule.containsKey(room.getRoomNumber()) &&
-                roomSchedule.get(room.getRoomNumber()).contains(slotKey))
-            return false;
+        for (TimeSlot ts : timetable.keySet()) {
+            if (ts.getDay().equals(slot.getDay())) {
+                if (timetable.get(ts).contains(subject.getName()))
+                    return false;
+            }
+        }
 
         return true;
     }
 
-    // ✅ Mark resources as busy
-    private static void markBusy(
-            Subject subject,
-            Room room,
-            TimeSlot slot,
-            Map<String, Set<String>> facultySchedule,
-            Map<String, Set<String>> roomSchedule) {
-
-        String slotKey = slot.getDay() + "_" + slot.getTime();
-
-        facultySchedule
-                .computeIfAbsent(subject.getFaculty(), k -> new HashSet<>())
-                .add(slotKey);
-
-        roomSchedule
-                .computeIfAbsent(room.getRoomNumber(), k -> new HashSet<>())
-                .add(slotKey);
+    private static String format(Subject s, Room r) {
+        return s.getName() + "\n(" + s.getFaculty() + ")\nRoom: " + r.getRoomNumber();
     }
 }
