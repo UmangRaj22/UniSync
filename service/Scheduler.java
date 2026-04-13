@@ -19,7 +19,6 @@ public class Scheduler {
         }
 
         Collections.shuffle(subjects);
-        Collections.shuffle(slots);
 
         backtrack(0, slots, subjects, rooms, timetable, remaining, subjectCount);
 
@@ -61,7 +60,7 @@ public class Scheduler {
 
                     TimeSlot next = getNextSlot(slots, slot);
 
-                    if (next == null || isLunchSlot(next)) continue;
+                    if (next == null || isLunchSlot(next) || !slot.getDay().equals(next.getDay())) continue;
 
                     if (timetable.containsKey(next)) continue;
 
@@ -114,8 +113,13 @@ public class Scheduler {
     private static TimeSlot getNextSlot(List<TimeSlot> slots, TimeSlot current) {
 
         for (int i = 0; i < slots.size() - 1; i++) {
-            if (slots.get(i).equals(current)) {
-                return slots.get(i + 1);
+
+            TimeSlot curr = slots.get(i);
+            TimeSlot next = slots.get(i + 1);
+
+        
+            if (curr.equals(current) && curr.getDay().equals(next.getDay())) {
+                return next;
             }
         }
         return null;

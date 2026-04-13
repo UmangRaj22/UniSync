@@ -15,7 +15,7 @@ import java.util.*;
 import java.io.*;
 
 import model.*;
-import service.Scheduler;
+import service.Scheduler;;
 
 public class MainFrame extends JFrame {
 
@@ -88,6 +88,7 @@ public class MainFrame extends JFrame {
 
         table.setRowHeight(60);
         table.setDefaultRenderer(Object.class, new CenterRenderer());
+        table.setDragEnabled(true);
 
         JSplitPane splitPane = new JSplitPane(
                 JSplitPane.VERTICAL_SPLIT,
@@ -317,7 +318,54 @@ public class MainFrame extends JFrame {
     }
 
     private void exportPDF() {
-        JOptionPane.showMessageDialog(this, "PDF export unchanged");
+
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setSelectedFile(new File("timetable.pdf"));
+
+        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+
+            File file = fileChooser.getSelectedFile();
+
+            try {
+                com.itextpdf.text.Document document = 
+                            new com.itextpdf.text.Document(com.itextpdf.text.PageSize.A4.rotate());
+                com.itextpdf.text.pdf.PdfWriter.getInstance(document, new FileOutputStream(file));
+
+                document.open();
+
+                com.itextpdf.text.Paragraph title = new com.itextpdf.text.Paragraph("TIMETABLE\n\n");
+                title.setAlignment(com.itextpdf.text.Element.ALIGN_CENTER);
+                document.add(title);
+
+                int cols = tableModel.getColumnCount();
+                int rows = tableModel.getRowCount();
+
+                com.itextpdf.text.pdf.PdfPTable pdfTable =
+                        new com.itextpdf.text.pdf.PdfPTable(cols);
+
+                // Add column headers
+                for (int i = 0; i < cols; i++) {
+                    pdfTable.addCell(tableModel.getColumnName(i));
+                }
+
+                 // Add table data
+                for (int i = 0; i < rows; i++) {
+                    for (int j = 0; j < cols; j++) {
+                        Object value = tableModel.getValueAt(i, j);
+                        pdfTable.addCell(value == null ? "-" : value.toString());
+                    }
+                }
+
+                document.add(pdfTable);
+                document.close();
+
+                JOptionPane.showMessageDialog(this, "PDF Exported Successfully!");
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error exporting PDF");
+            }
+        }
     }
 
     private void editCell() {
