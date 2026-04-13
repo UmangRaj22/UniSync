@@ -161,14 +161,9 @@ JAVA Lab,Lab,Faculty Name,CSE-AB,2
 ## Future Enhancements
 
 * Faculty timetable view
-* Color-coded timetable (Lab / Theory / Free)
-* Database integration (SQLite)
-* JavaFX migration (modern UI)
+* Database integration
 * AI/ML-based scheduling optimization
 * Conflict visualization dashboard
 
 ---
 
-## License
-
-This project is for educational and learning purposes.
