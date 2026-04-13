@@ -148,4 +148,4 @@ public class Scheduler {
     private static String format(Subject s, Room r) {
         return s.getName() + "\n(" + s.getFaculty() + ")\nRoom: " + r.getRoomNumber();
     }
-}
+} 

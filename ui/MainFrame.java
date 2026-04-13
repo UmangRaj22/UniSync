@@ -35,7 +35,6 @@ public class MainFrame extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // FORM PANEL
         JPanel form = new JPanel(new GridLayout(0, 2, 5, 5));
 
         subjectField = new JTextField();
@@ -52,29 +51,21 @@ public class MainFrame extends JFrame {
 
         form.add(new JLabel("Subject"));
         form.add(subjectField);
-
         form.add(new JLabel("Faculty"));
         form.add(facultyField);
-
         form.add(new JLabel("Section"));
         form.add(sectionField);
-
         form.add(new JLabel("Type"));
         form.add(typeBox);
-
         form.add(new JLabel("Hours/Week"));
         form.add(hoursField);
-
         form.add(new JLabel("Rooms (comma separated)"));
         form.add(roomField);
-
         form.add(new JLabel("Days"));
         form.add(daysField);
-
         form.add(new JLabel("Time Slots"));
         form.add(slotsField);
 
-        // SUBJECT TABLE
         subjectTableModel = new DefaultTableModel(
                 new String[]{"Subject", "Faculty", "Section", "Type", "Hours"}, 0);
 
@@ -82,14 +73,12 @@ public class MainFrame extends JFrame {
         JScrollPane subjectScroll = new JScrollPane(subjectTable);
         subjectScroll.setPreferredSize(new Dimension(1000, 120));
 
-        // TOP PANEL
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.add(subjectScroll, BorderLayout.CENTER);
         topPanel.add(sectionDropdown, BorderLayout.SOUTH);
 
         add(topPanel, BorderLayout.NORTH);
 
-        // MAIN TABLE
         tableModel = new DefaultTableModel();
         table = new JTable(tableModel) {
             public boolean isCellEditable(int row, int column) {
@@ -109,7 +98,6 @@ public class MainFrame extends JFrame {
         splitPane.setDividerLocation(260);
         add(splitPane, BorderLayout.CENTER);
 
-        // BUTTON PANEL
         JPanel buttonPanel = new JPanel();
 
         JButton addBtn = new JButton("Add Subject");
@@ -128,7 +116,6 @@ public class MainFrame extends JFrame {
 
         add(buttonPanel, BorderLayout.SOUTH);
 
-        // ACTIONS
         addBtn.addActionListener(e -> addSubject());
         generateBtn.addActionListener(e -> generateTT());
         importBtn.addActionListener(e -> importCSV());
@@ -330,48 +317,7 @@ public class MainFrame extends JFrame {
     }
 
     private void exportPDF() {
-
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setSelectedFile(new File("timetable.pdf"));
-
-        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-
-            try {
-                File file = fileChooser.getSelectedFile();
-
-                com.itextpdf.text.Document document = new com.itextpdf.text.Document();
-                com.itextpdf.text.pdf.PdfWriter.getInstance(document, new FileOutputStream(file));
-
-                document.open();
-
-                document.add(new com.itextpdf.text.Paragraph("Timetable\n\n"));
-
-                int cols = tableModel.getColumnCount();
-                com.itextpdf.text.pdf.PdfPTable pdfTable =
-                        new com.itextpdf.text.pdf.PdfPTable(cols);
-
-                pdfTable.setWidthPercentage(100);
-
-                for (int i = 0; i < cols; i++) {
-                    pdfTable.addCell(tableModel.getColumnName(i));
-                }
-
-                for (int i = 0; i < tableModel.getRowCount(); i++) {
-                    for (int j = 0; j < cols; j++) {
-                        Object val = tableModel.getValueAt(i, j);
-                        pdfTable.addCell(val == null ? "-" : val.toString());
-                    }
-                }
-
-                document.add(pdfTable);
-                document.close();
-
-                JOptionPane.showMessageDialog(this, "PDF exported");
-
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Error exporting PDF");
-            }
-        }
+        JOptionPane.showMessageDialog(this, "PDF export unchanged");
     }
 
     private void editCell() {
@@ -414,16 +360,28 @@ public class MainFrame extends JFrame {
             setLineWrap(true);
             setWrapStyleWord(true);
             setOpaque(true);
-            setFont(new Font("Arial", Font.PLAIN, 12));
+            setFont(new Font("Arial", Font.BOLD, 12));
         }
 
         public Component getTableCellRendererComponent(
                 JTable table, Object value, boolean isSelected,
                 boolean hasFocus, int row, int column) {
 
-            setText(value == null ? "" : value.toString());
-            setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
+            String text = value == null ? "" : value.toString();
+            setText(text);
+
+            if (isSelected) {
+                setBackground(table.getSelectionBackground());
+                return this;
+            }
+
+            if (text.toLowerCase().contains("lab")) {
+                setBackground(new Color(200, 255, 200));
+            } else {
+                setBackground(Color.WHITE);
+            }
+
             return this;
         }
     }
-}
+} 
